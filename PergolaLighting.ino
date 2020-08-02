@@ -11,6 +11,11 @@
 #define PIN D2
 #define HOSTNAME "PergolaLighting"
 #define ONE_WIRE_BUS D5
+#define USER_MQTT_CLIENT_NAME "kolcun/outdoor/pergola/led"
+#define MODE_WHITE 1
+#define MODE_RGB 0
+#define STRIP_ON 1
+#define STRIP_OFF 0
 
 const char* ssid = WIFI_SSID;
 const char* password = WIFI_PASSWD;
@@ -22,10 +27,17 @@ const char onlineMessage[50] = "Pergola LED Online";
 
 char charPayload[50];
 
+int ledPowerState = STRIP_OFF;
+int ledMode = MODE_WHITE;
+int ledBrightness = 25;
+int red = 0;
+int green = 0;
+int blue = 0;
+
+
 WiFiClient wifiClient;
 PubSubClient pubSubClient(wifiClient);
 
-//Adafruit_NeoPixel strip = Adafruit_NeoPixel(600, PIN, NEO_GRBW + NEO_KHZ800);
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(300, PIN, NEO_GRBW + NEO_KHZ800);
 
 // Setup a oneWire instance to communicate with any OneWire devices
@@ -50,12 +62,15 @@ void setup() {
 void loop() {
 
   ArduinoOTA.handle();
-  readTemperature();
+  //  readTemperature();
 
   if (!pubSubClient.connected()) {
     reconnect();
   }
   pubSubClient.loop();
+
+  configureLedStripState();
+  strip.show();
 
   //do things with LED strip
 
@@ -65,6 +80,34 @@ void loop() {
   //  theaterChase(strip.Color(0, 0, 0, 255), 50); // Warm White
   //  theaterChase(strip.Color(127, 0, 0), 50); // Red
   //  theaterChase(strip.Color(0, 0, 127), 50); // Blue
+}
+
+
+void configureLedStripState() {
+  if (ledPowerState == STRIP_OFF) {
+    strip.setBrightness(0);
+    for (uint16_t i = 0; i < strip.numPixels(); i++) {
+      strip.setPixelColor(i, strip.Color(0, 0, 0, 0));
+    }
+  } else if (ledPowerState == STRIP_ON) {
+    strip.setBrightness(ledBrightness);
+    if (ledMode == MODE_RGB) {
+      for (uint16_t i = 0; i < strip.numPixels(); i++) {
+        strip.setPixelColor(i, strip.Color(red, green, blue, 0));
+      }
+    } else if (ledMode == MODE_WHITE) {
+      for (uint16_t i = 0; i < strip.numPixels(); i++) {
+        strip.setPixelColor(i, strip.Color(0, 0, 0, 255));
+      }
+      strip.setPixelColor(2, strip.Color(255, 0, 0, 0));
+      strip.setPixelColor(3, strip.Color(255, 0, 0, 0));
+      strip.setPixelColor(4, strip.Color(255, 0, 0, 0));
+      strip.setPixelColor(5, strip.Color(255, 0, 0, 0));
+      strip.setPixelColor(6, strip.Color(255, 0, 0, 0));
+    }
+
+  }
+
 }
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
@@ -78,69 +121,57 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   Serial.println(newPayload);
   Serial.println();
   newPayload.toCharArray(charPayload, newPayload.length() + 1);
-  //
-  //  if (newTopic == USER_MQTT_CLIENT_NAME"/command")
-  //  {
-  //    effect = newPayload;
-  //    client.publish(USER_MQTT_CLIENT_NAME"/state", charPayload);
-  //  }
-  //  if (newTopic == USER_MQTT_CLIENT_NAME"/wakeAlarm")
-  //  {
-  //    whiteLevel = 0;
-  //    sunPhase = 0;
-  //    fadeStep = 0;
-  //    sunFadeStep = 0;
-  //    effect = "sunrise";
-  //    wakeDelay = intPayload*10;
-  //    timer.setTimeout(wakeDelay, increaseSunPhase);
-  //    timer.setTimeout(wakeDelay, increaseWhiteLevel);
-  //    timer.setTimeout((wakeDelay/80), increaseFadeStep);
-  //    timer.setTimeout((wakeDelay/80), increaseSunFadeStep);
-  //    client.publish(USER_MQTT_CLIENT_NAME"/command", "sunrise", true); //this sets a retained value to restore the sunrise in case of reconnect
-  //    client.publish(USER_MQTT_CLIENT_NAME"/state", "mqttRGB"); //this is needed for the state in home assistant
-  //  }
-  //  if (newTopic == USER_MQTT_CLIENT_NAME"/white")
-  //  {
-  //    white = intPayload;
-  //    client.publish(USER_MQTT_CLIENT_NAME"/whiteState", charPayload);
-  //  }
-  //  if (newTopic == USER_MQTT_CLIENT_NAME "/color")
-  //  {
-  //    client.publish(USER_MQTT_CLIENT_NAME "/colorState", charPayload);
-  //    // get the position of the first and second commas
-  //    uint8_t firstIndex = newPayload.indexOf(',');
-  //    uint8_t lastIndex = newPayload.lastIndexOf(',');
-  //
-  //    uint8_t rgb_red = newPayload.substring(0, firstIndex).toInt();
-  //    if (rgb_red < 0 || rgb_red > 255)
-  //    {
-  //      return;
-  //    }
-  //    else
-  //    {
-  //      red = rgb_red;
-  //    }
-  //
-  //    uint8_t rgb_green = newPayload.substring(firstIndex + 1, lastIndex).toInt();
-  //    if (rgb_green < 0 || rgb_green > 255)
-  //    {
-  //      return;
-  //    }
-  //    else
-  //    {
-  //      green = rgb_green;
-  //    }
-  //
-  //    uint8_t rgb_blue = newPayload.substring(lastIndex + 1).toInt();
-  //    if (rgb_blue < 0 || rgb_blue > 255)
-  //    {
-  //      return;
-  //    }
-  //    else
-  //    {
-  //      blue = rgb_blue;
-  //    }
-  //  }
+
+//  Serial.print("Topic: ");
+//  Serial.println(newTopic);
+//  Serial.print("Payload: ");
+//  Serial.println(newPayload);
+//  Serial.print("CharPayload: ");
+//  Serial.println(charPayload);
+//  Serial.print("IntPayload: " );
+//  Serial.println(intPayload);
+
+  if (newTopic == USER_MQTT_CLIENT_NAME"/power/set") {
+    pubSubClient.publish(USER_MQTT_CLIENT_NAME"/power/state", charPayload);
+    ledPowerState = intPayload;
+  }
+  if (newTopic == USER_MQTT_CLIENT_NAME"/mode/set") {
+    pubSubClient.publish(USER_MQTT_CLIENT_NAME"/mode/state", charPayload);
+    ledMode = intPayload;
+  }
+  if (newTopic == USER_MQTT_CLIENT_NAME"/brightness/set") {
+    pubSubClient.publish(USER_MQTT_CLIENT_NAME"/brightness/state", charPayload);
+    ledBrightness = intPayload;
+  }
+
+  if (newTopic == USER_MQTT_CLIENT_NAME"/colour/set") {
+    pubSubClient.publish(USER_MQTT_CLIENT_NAME"/colour/state", charPayload);
+
+    uint8_t firstIndex = newPayload.indexOf(',');
+    uint8_t lastIndex = newPayload.lastIndexOf(',');
+
+    uint8_t rgb_red = newPayload.substring(0, firstIndex).toInt();
+    if (rgb_red < 0 || rgb_red > 255) {
+      return;
+    } else {
+      red = rgb_red;
+    }
+
+    uint8_t rgb_green = newPayload.substring(firstIndex + 1, lastIndex).toInt();
+    if (rgb_green < 0 || rgb_green > 255) {
+      return;
+    } else {
+      green = rgb_green;
+      
+    }
+
+    uint8_t rgb_blue = newPayload.substring(lastIndex + 1).toInt();
+    if (rgb_blue < 0 || rgb_blue > 255) {
+      return;
+    } else {
+      blue = rgb_blue;
+    }
+  }
 }
 
 void readTemperature() {
@@ -164,7 +195,7 @@ void readTemperature() {
   //  pubSubClient.publish(stateTopicF, (char *) tempF.c_str());
   // You can have more than one IC on the same bus.
   // 0 refers to the first IC on the wire
-  delay(1000);
+  //  delay(1000);
 }
 
 void setupMqtt() {
@@ -176,71 +207,17 @@ void setupMqtt() {
 }
 
 void setupStrip() {
-  strip.setBrightness(50);
+  strip.setBrightness(ledBrightness);
   strip.begin();
+  configureLedStripState();
   strip.show();
-  for (uint16_t i = 0; i < strip.numPixels(); i++) {
-    //    strip.setPixelColor(i, strip.Color(0, 0, 0, 127));
-    strip.setPixelColor(i, strip.Color(255, 0, 0, 0));
-  }
-  strip.show();
-  //  delay(1000);
-  //  for (uint16_t i = 0; i < strip.numPixels(); i++) {
-  //    //    strip.setPixelColor(i, strip.Color(0, 0, 0, 127));
-  //    strip.setPixelColor(i, strip.Color(0, 255, 0, 0));
-  //  }
-  //  strip.show();
-  //  delay(1000);
-  //  for (uint16_t i = 0; i < strip.numPixels(); i++) {
-  //    //    strip.setPixelColor(i, strip.Color(0, 0, 0, 127));
-  //    strip.setPixelColor(i, strip.Color(0, 0, 255, 0));
-  //  }
-  //  strip.show();
-  //  delay(1000);
-  //  Serial.println("warm white");
-  //  for (uint16_t i = 0; i < strip.numPixels(); i++) {
-  //    //    strip.setPixelColor(i, strip.Color(0, 0, 0, 127));
-  //    strip.setPixelColor(i, strip.Color(0, 0, 0, 255));
-  //  }
-  //  strip.show();
-  //  delay(10000);
-  //  strip.setBrightness(45);
-  //  strip.show();
-  //  delay(5000);
-  //  strip.setBrightness(40);
-  //  strip.show();
-  //  delay(5000);
-  //  strip.setBrightness(35);
-  //  strip.show();
-  //  delay(5000);
-  //  strip.setBrightness(30);
-  //  strip.show();
-  //  delay(5000);
-  //  strip.setBrightness(25);
-  //  strip.show();
-  //  delay(5000);
-  //  strip.setBrightness(20);
-  //  strip.show();
-  //  delay(5000);
-  //  strip.setBrightness(15);
-  //  strip.show();
-  //  delay(5000);
-  //  Serial.println("colour");
-  //  for (uint16_t i = 58; i < strip.numPixels(); i++) {
-  //    //    strip.setPixelColor(i, strip.Color(0, 0, 0, 127));
-  //    strip.setPixelColor(i, strip.Color(123, 132, 255, 0));
-  //  }
-  //  strip.show();
-  //  delay(2000);
-  //  Serial.println("another colour");
-  //  for (uint16_t i = 58; i < strip.numPixels(); i++) {
-  //    //    strip.setPixelColor(i, strip.Color(0, 0, 0, 127));
-  //    strip.setPixelColor(i, strip.Color(150, 21, 130, 0));
-  //  }
-  //  strip.show();
-  //  //delay (5000);
-  //  //Serial.println("colour wipe");
-  //  //colorWipe(strip.Color(0, 255, 255, 0), 5);
+
+  pubSubClient.publish(USER_MQTT_CLIENT_NAME"/power/state", String(ledPowerState).c_str());
+  pubSubClient.publish(USER_MQTT_CLIENT_NAME"/brightness/state", String(ledBrightness).c_str());
+  pubSubClient.publish(USER_MQTT_CLIENT_NAME"/mode/state", String(ledMode).c_str());
+  String colour = String(red) + "," + String(green) + "," + String(blue);
+  pubSubClient.publish(USER_MQTT_CLIENT_NAME"/colour/state", String(colour).c_str());
+
 }
 
 void setupOTA() {
@@ -389,11 +366,10 @@ void reconnect() {
         } else {
           pubSubClient.publish(overwatchTopic, "Reconnected");
         }
-        pubSubClient.subscribe("kolcun/outdoor/pergola/led/#");
-        //        pubSubClient.subscribe(USER_MQTT_CLIENT_NAME"/effect");
-        //        pubSubClient.subscribe(USER_MQTT_CLIENT_NAME"/color");
-        //        pubSubClient.subscribe(USER_MQTT_CLIENT_NAME"/white");
-        //        pubSubClient.subscribe(USER_MQTT_CLIENT_NAME"/wakeAlarm");
+        pubSubClient.subscribe(USER_MQTT_CLIENT_NAME"/power/set");
+        pubSubClient.subscribe(USER_MQTT_CLIENT_NAME"/mode/set");
+        pubSubClient.subscribe(USER_MQTT_CLIENT_NAME"/brightness/set");
+        pubSubClient.subscribe(USER_MQTT_CLIENT_NAME"/colour/set");
       } else {
         Serial.print("failed, rc=");
         Serial.print(pubSubClient.state());
