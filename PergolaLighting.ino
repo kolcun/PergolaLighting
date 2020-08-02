@@ -22,7 +22,6 @@
 const char* ssid = WIFI_SSID;
 const char* password = WIFI_PASSWD;
 
-//const char* clientId = "kolcun/outdoor/pergola/led";
 const char* overwatchTopic = MQTT_CLIENT_NAME"/overwatch";
 const char* temperatureTopic = MQTT_CLIENT_NAME"/temperature/state";
 
@@ -101,11 +100,11 @@ void configureLedStripState() {
       for (uint16_t i = 0; i < strip.numPixels(); i++) {
         strip.setPixelColor(i, strip.Color(0, 0, 0, 255));
       }
-//      strip.setPixelColor(2, strip.Color(255, 0, 0, 0));
-//      strip.setPixelColor(3, strip.Color(255, 0, 0, 0));
-//      strip.setPixelColor(4, strip.Color(255, 0, 0, 0));
-//      strip.setPixelColor(5, strip.Color(255, 0, 0, 0));
-//      strip.setPixelColor(6, strip.Color(255, 0, 0, 0));
+      //      strip.setPixelColor(2, strip.Color(255, 0, 0, 0));
+      //      strip.setPixelColor(3, strip.Color(255, 0, 0, 0));
+      //      strip.setPixelColor(4, strip.Color(255, 0, 0, 0));
+      //      strip.setPixelColor(5, strip.Color(255, 0, 0, 0));
+      //      strip.setPixelColor(6, strip.Color(255, 0, 0, 0));
     }
   }
 }
@@ -177,15 +176,15 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 void readTemperature() {
   // call sensors.requestTemperatures() to issue a global temperature
   // request to all devices on the bus
-  Serial.print(" Requesting temperatures...");
+  //  Serial.print(" Requesting temperatures...");
   sensors.requestTemperatures(); // Send the command to get temperatures
-  Serial.println("DONE");
+  //  Serial.println("DONE");
   float currentTempC = sensors.getTempCByIndex(0);
   float currentTempF = sensors.getTempFByIndex(0);
-  Serial.print("Temperature C is: ");
-  Serial.println(currentTempC);
-  Serial.print("Temperature F is: ");
-  Serial.println(currentTempF);
+  //  Serial.print("Temperature C is: ");
+  //  Serial.println(currentTempC);
+  //  Serial.print("Temperature F is: ");
+  //  Serial.println(currentTempF);
 
   const int capacity = JSON_OBJECT_SIZE(3);
   StaticJsonDocument<capacity> doc;
