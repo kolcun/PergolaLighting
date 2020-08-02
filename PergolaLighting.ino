@@ -7,11 +7,13 @@
 #include <Adafruit_NeoPixel.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
+#include <AsyncDelay.h>
+#include <ArduinoJson.h>
 
 #define PIN D2
 #define HOSTNAME "PergolaLighting"
 #define ONE_WIRE_BUS D5
-#define USER_MQTT_CLIENT_NAME "kolcun/outdoor/pergola/led"
+#define MQTT_CLIENT_NAME "kolcun/outdoor/pergola/led"
 #define MODE_WHITE 1
 #define MODE_RGB 0
 #define STRIP_ON 1
@@ -20,10 +22,9 @@
 const char* ssid = WIFI_SSID;
 const char* password = WIFI_PASSWD;
 
-const char* clientId = "kolcun/outdoor/pergola/led";
-const char* overwatchTopic = "kolcun/outdoor/pergola/led/overwatch";
-const char* stateTopic = "kolcun/outdoor/pool/temperature/state";
-const char onlineMessage[50] = "Pergola LED Online";
+//const char* clientId = "kolcun/outdoor/pergola/led";
+const char* overwatchTopic = MQTT_CLIENT_NAME"/overwatch";
+const char* temperatureTopic = MQTT_CLIENT_NAME"/temperature/state";
 
 char charPayload[50];
 
@@ -33,7 +34,6 @@ int ledBrightness = 25;
 int red = 0;
 int green = 0;
 int blue = 0;
-
 
 WiFiClient wifiClient;
 PubSubClient pubSubClient(wifiClient);
@@ -47,22 +47,25 @@ OneWire oneWire(ONE_WIRE_BUS);
 // Pass our oneWire reference to Dallas Temperature.
 DallasTemperature sensors(&oneWire);
 
+AsyncDelay delay60s;
+
 void setup() {
   Serial.begin(115200);
   Serial.println("Booting");
 
-  pinMode(ONE_WIRE_BUS, INPUT);
-
   setupOTA();
   setupMqtt();
   setupStrip();
-
+  setupTemperature();
 }
 
 void loop() {
 
   ArduinoOTA.handle();
-  //  readTemperature();
+  if (delay60s.isExpired()) {
+    readTemperature();
+    delay60s.repeat();
+  }
 
   if (!pubSubClient.connected()) {
     reconnect();
@@ -73,7 +76,6 @@ void loop() {
   strip.show();
 
   //do things with LED strip
-
   //  theaterChase(strip.Color(127, 127, 127, 127), 50); // "White"
   //  theaterChase(strip.Color(255, 255, 255, 255), 50); // "White"
   //  theaterChase(strip.Color(0, 0, 0, 127), 50); // Warm White
@@ -99,15 +101,13 @@ void configureLedStripState() {
       for (uint16_t i = 0; i < strip.numPixels(); i++) {
         strip.setPixelColor(i, strip.Color(0, 0, 0, 255));
       }
-      strip.setPixelColor(2, strip.Color(255, 0, 0, 0));
-      strip.setPixelColor(3, strip.Color(255, 0, 0, 0));
-      strip.setPixelColor(4, strip.Color(255, 0, 0, 0));
-      strip.setPixelColor(5, strip.Color(255, 0, 0, 0));
-      strip.setPixelColor(6, strip.Color(255, 0, 0, 0));
+//      strip.setPixelColor(2, strip.Color(255, 0, 0, 0));
+//      strip.setPixelColor(3, strip.Color(255, 0, 0, 0));
+//      strip.setPixelColor(4, strip.Color(255, 0, 0, 0));
+//      strip.setPixelColor(5, strip.Color(255, 0, 0, 0));
+//      strip.setPixelColor(6, strip.Color(255, 0, 0, 0));
     }
-
   }
-
 }
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
@@ -122,30 +122,30 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   Serial.println();
   newPayload.toCharArray(charPayload, newPayload.length() + 1);
 
-//  Serial.print("Topic: ");
-//  Serial.println(newTopic);
-//  Serial.print("Payload: ");
-//  Serial.println(newPayload);
-//  Serial.print("CharPayload: ");
-//  Serial.println(charPayload);
-//  Serial.print("IntPayload: " );
-//  Serial.println(intPayload);
+  //  Serial.print("Topic: ");
+  //  Serial.println(newTopic);
+  //  Serial.print("Payload: ");
+  //  Serial.println(newPayload);
+  //  Serial.print("CharPayload: ");
+  //  Serial.println(charPayload);
+  //  Serial.print("IntPayload: " );
+  //  Serial.println(intPayload);
 
-  if (newTopic == USER_MQTT_CLIENT_NAME"/power/set") {
-    pubSubClient.publish(USER_MQTT_CLIENT_NAME"/power/state", charPayload);
+  if (newTopic == MQTT_CLIENT_NAME"/power/set") {
+    pubSubClient.publish(MQTT_CLIENT_NAME"/power/state", charPayload);
     ledPowerState = intPayload;
   }
-  if (newTopic == USER_MQTT_CLIENT_NAME"/mode/set") {
-    pubSubClient.publish(USER_MQTT_CLIENT_NAME"/mode/state", charPayload);
+  if (newTopic == MQTT_CLIENT_NAME"/mode/set") {
+    pubSubClient.publish(MQTT_CLIENT_NAME"/mode/state", charPayload);
     ledMode = intPayload;
   }
-  if (newTopic == USER_MQTT_CLIENT_NAME"/brightness/set") {
-    pubSubClient.publish(USER_MQTT_CLIENT_NAME"/brightness/state", charPayload);
+  if (newTopic == MQTT_CLIENT_NAME"/brightness/set") {
+    pubSubClient.publish(MQTT_CLIENT_NAME"/brightness/state", charPayload);
     ledBrightness = intPayload;
   }
 
-  if (newTopic == USER_MQTT_CLIENT_NAME"/colour/set") {
-    pubSubClient.publish(USER_MQTT_CLIENT_NAME"/colour/state", charPayload);
+  if (newTopic == MQTT_CLIENT_NAME"/colour/set") {
+    pubSubClient.publish(MQTT_CLIENT_NAME"/colour/state", charPayload);
 
     uint8_t firstIndex = newPayload.indexOf(',');
     uint8_t lastIndex = newPayload.lastIndexOf(',');
@@ -162,7 +162,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       return;
     } else {
       green = rgb_green;
-      
+
     }
 
     uint8_t rgb_blue = newPayload.substring(lastIndex + 1).toInt();
@@ -187,15 +187,22 @@ void readTemperature() {
   Serial.print("Temperature F is: ");
   Serial.println(currentTempF);
 
-  //  String tempC;
-  //  tempC += currentTempC;
-  //  String tempF;
-  //  tempF += currentTempF;
-  //  pubSubClient.publish(stateTopicC, (char *) tempC.c_str());
-  //  pubSubClient.publish(stateTopicF, (char *) tempF.c_str());
-  // You can have more than one IC on the same bus.
-  // 0 refers to the first IC on the wire
-  //  delay(1000);
+  const int capacity = JSON_OBJECT_SIZE(3);
+  StaticJsonDocument<capacity> doc;
+  doc["temperature"]["C"] = currentTempC;
+  doc["temperature"]["F"] = currentTempF;
+
+  String output;
+  serializeJson(doc, output);
+  pubSubClient.publish(temperatureTopic, (uint8_t*) output.c_str(), output.length(), true);
+}
+
+void setupTemperature() {
+  pinMode(ONE_WIRE_BUS, INPUT);
+  delay60s.start(60000, AsyncDelay::MILLIS);
+  //first time seems to be slightly off
+  sensors.requestTemperatures();
+  readTemperature();
 }
 
 void setupMqtt() {
@@ -212,12 +219,11 @@ void setupStrip() {
   configureLedStripState();
   strip.show();
 
-  pubSubClient.publish(USER_MQTT_CLIENT_NAME"/power/state", String(ledPowerState).c_str());
-  pubSubClient.publish(USER_MQTT_CLIENT_NAME"/brightness/state", String(ledBrightness).c_str());
-  pubSubClient.publish(USER_MQTT_CLIENT_NAME"/mode/state", String(ledMode).c_str());
+  pubSubClient.publish(MQTT_CLIENT_NAME"/power/state", String(ledPowerState).c_str());
+  pubSubClient.publish(MQTT_CLIENT_NAME"/brightness/state", String(ledBrightness).c_str());
+  pubSubClient.publish(MQTT_CLIENT_NAME"/mode/state", String(ledMode).c_str());
   String colour = String(red) + "," + String(green) + "," + String(blue);
-  pubSubClient.publish(USER_MQTT_CLIENT_NAME"/colour/state", String(colour).c_str());
-
+  pubSubClient.publish(MQTT_CLIENT_NAME"/colour/state", String(colour).c_str());
 }
 
 void setupOTA() {
@@ -357,7 +363,7 @@ void reconnect() {
     if (retries < 10) {
       Serial.print("Attempting MQTT connection...");
       // Attempt to connect
-      if (pubSubClient.connect(clientId, MQTT_USER, MQTT_PASSWD)) {
+      if (pubSubClient.connect(MQTT_CLIENT_NAME, MQTT_USER, MQTT_PASSWD)) {
         Serial.println("connected");
         // Once connected, publish an announcement...
         if (boot == true) {
@@ -366,10 +372,10 @@ void reconnect() {
         } else {
           pubSubClient.publish(overwatchTopic, "Reconnected");
         }
-        pubSubClient.subscribe(USER_MQTT_CLIENT_NAME"/power/set");
-        pubSubClient.subscribe(USER_MQTT_CLIENT_NAME"/mode/set");
-        pubSubClient.subscribe(USER_MQTT_CLIENT_NAME"/brightness/set");
-        pubSubClient.subscribe(USER_MQTT_CLIENT_NAME"/colour/set");
+        pubSubClient.subscribe(MQTT_CLIENT_NAME"/power/set");
+        pubSubClient.subscribe(MQTT_CLIENT_NAME"/mode/set");
+        pubSubClient.subscribe(MQTT_CLIENT_NAME"/brightness/set");
+        pubSubClient.subscribe(MQTT_CLIENT_NAME"/colour/set");
       } else {
         Serial.print("failed, rc=");
         Serial.print(pubSubClient.state());
