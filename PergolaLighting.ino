@@ -201,6 +201,8 @@ void setupTemperature() {
   delay60s.start(60000, AsyncDelay::MILLIS);
   //first time seems to be slightly off
   sensors.requestTemperatures();
+  delay(1000);
+  sensors.requestTemperatures();
   readTemperature();
 }
 
