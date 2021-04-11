@@ -391,3 +391,90 @@ void reconnect() {
     }
   }
 }
+
+/* openhab config
+
+UID: mqtt:topic:broker:pergola
+label: Pergola MQTT
+thingTypeUID: mqtt:topic
+configuration: {}
+bridgeUID: mqtt:systemBroker:broker
+location: Outside
+channels:
+  - id: ledPower
+    channelTypeUID: mqtt:switch
+    label: Power
+    description: null
+    configuration:
+      retained: false
+      postCommand: false
+      formatBeforePublish: "%s"
+      commandTopic: kolcun/outdoor/pergola/led/power/set
+      stateTopic: kolcun/outdoor/pergola/led/power/state
+      off: "0"
+      on: "1"
+  - id: ledMode
+    channelTypeUID: mqtt:number
+    label: Mode
+    description: null
+    configuration:
+      commandTopic: kolcun/outdoor/pergola/led/mode/set
+      retained: false
+      postCommand: false
+      step: 1
+      formatBeforePublish: "%s"
+      stateTopic: kolcun/outdoor/pergola/led/mode/state
+  - id: ledColour
+    channelTypeUID: mqtt:colorRGB
+    label: Colour
+    description: null
+    configuration:
+      retained: false
+      postCommand: false
+      formatBeforePublish: "%s"
+      commandTopic: kolcun/outdoor/pergola/led/colour/set
+      colorMode: HSB
+      stateTopic: kolcun/outdoor/pergola/led/colour/state
+      off: "0"
+      on: "1"
+      onBrightness: 10
+  - id: ledBrightness
+    channelTypeUID: mqtt:number
+    label: Brightness
+    description: null
+    configuration:
+      retained: false
+      postCommand: false
+      min: 0
+      formatBeforePublish: "%s"
+      max: 255
+      commandTopic: kolcun/outdoor/pergola/led/brightness/set
+      step: 1
+      stateTopic: kolcun/outdoor/pergola/led/brightness/state
+  - id: pergolaTemperatureC
+    channelTypeUID: mqtt:number
+    label: Pergola Temperature C
+    description: null
+    configuration:
+      retained: false
+      postCommand: false
+      step: 1
+      formatBeforePublish: "%s"
+      stateTopic: kolcun/outdoor/pergola/led/temperature/state
+      transformationPattern: JSONPATH:$.temperature.C
+  - id: pergolaTemperatureF
+    channelTypeUID: mqtt:number
+    label: Pergola Temperature F
+    description: null
+    configuration:
+      retained: false
+      postCommand: false
+      step: 1
+      formatBeforePublish: "%s"
+      stateTopic: kolcun/outdoor/pergola/led/temperature/state
+      transformationPattern: JSONPATH:$.temperature.F
+
+
+
+ 
+ */
